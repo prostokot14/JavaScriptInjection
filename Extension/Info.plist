@@ -11,7 +11,7 @@
 			<key>NSExtensionActivationRule</key>
 			<dict>
 				<key>NSExtensionActivationSupportsWebPageWithMaxCount</key>
-				<string>1</string>
+				<integer>1</integer>
 			</dict>
 			<key>NSExtensionServiceAllowsFinderPreviewItem</key>
 			<true/>
