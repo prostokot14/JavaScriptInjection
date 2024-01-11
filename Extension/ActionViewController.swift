@@ -25,11 +25,19 @@ class ActionViewController: UIViewController {
                     // Ask the item provider to actually provide us with its item.
                     // The method will carry on executing while the item provider is busy loading and sending us its data.
                     itemProvider.loadItem(forTypeIdentifier: UTType.propertyList.identifier as String) { [weak self] dict, error in
-                        
+                        guard
+                            let itemDictionary = dict as? NSDictionary,
+                            let javaScriptValues = itemDictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? NSDictionary
+                        else { return }
+                        print(javaScriptValues)
                     }
                 } else {
                     itemProvider.loadItem(forTypeIdentifier: kUTTypePropertyList as String) { [weak self] dict, error in
-                        
+                        guard
+                            let itemDictionary = dict as? NSDictionary,
+                            let javaScriptValues = itemDictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? NSDictionary
+                        else { return }
+                        print(javaScriptValues)
                     }
                 }
             }
