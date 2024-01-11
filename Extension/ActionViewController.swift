@@ -9,12 +9,17 @@ import UIKit
 import MobileCoreServices
 import UniformTypeIdentifiers
 
-class ActionViewController: UIViewController {
+final class ActionViewController: UIViewController {
 
-    @IBOutlet weak var imageView: UIImageView!
-
+    @IBOutlet var scriptTextView: UITextView!
+    
+    private var pageTitle = ""
+    private var pageURL = ""
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
         
         // When extension is created, its extensionContext lets us control how it interacts with the parent app.
         // In the case of inputItems this will be an array of data the parent app is sending to our extension to use.
@@ -29,7 +34,13 @@ class ActionViewController: UIViewController {
                             let itemDictionary = dict as? NSDictionary,
                             let javaScriptValues = itemDictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? NSDictionary
                         else { return }
-                        print(javaScriptValues)
+                        
+                        self?.pageTitle = javaScriptValues["title"] as? String ?? ""
+                        self?.pageURL = javaScriptValues["URL"] as? String ?? ""
+                        
+                        DispatchQueue.main.async {
+                            self?.title = self?.pageTitle
+                        }
                     }
                 } else {
                     itemProvider.loadItem(forTypeIdentifier: kUTTypePropertyList as String) { [weak self] dict, error in
@@ -37,7 +48,13 @@ class ActionViewController: UIViewController {
                             let itemDictionary = dict as? NSDictionary,
                             let javaScriptValues = itemDictionary[NSExtensionJavaScriptPreprocessingResultsKey] as? NSDictionary
                         else { return }
-                        print(javaScriptValues)
+                        
+                        self?.pageTitle = javaScriptValues["title"] as? String ?? ""
+                        self?.pageURL = javaScriptValues["URL"] as? String ?? ""
+                        
+                        DispatchQueue.main.async {
+                            self?.title = self?.pageTitle
+                        }
                     }
                 }
             }
@@ -45,8 +62,18 @@ class ActionViewController: UIViewController {
     }
 
     @IBAction func done() {
-        // Return any edited content to the host app.
-        // This template doesn't do anything, so we just echo the passed in items.
-        self.extensionContext!.completeRequest(returningItems: self.extensionContext!.inputItems, completionHandler: nil)
+        let item = NSExtensionItem()
+        let webDictionary: NSDictionary = [
+            NSExtensionJavaScriptFinalizeArgumentKey: ["customJavaScript": scriptTextView.text as Any]
+        ]
+        
+        let customJavaScript = if #available(iOSApplicationExtension 14.0, *) {
+            NSItemProvider(item: webDictionary, typeIdentifier: UTType.propertyList.identifier as String)
+        } else {
+            NSItemProvider(item: webDictionary, typeIdentifier: kUTTypePropertyList as String)
+        }
+        
+        item.attachments = [customJavaScript]
+        extensionContext?.completeRequest(returningItems: [item])
     }
 }
