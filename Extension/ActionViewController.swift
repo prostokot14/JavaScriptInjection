@@ -10,11 +10,16 @@ import MobileCoreServices
 import UniformTypeIdentifiers
 
 final class ActionViewController: UIViewController {
-
-    @IBOutlet var scriptTextView: UITextView!
+    // MARK: - IBOutlets
+    
+    @IBOutlet private var scriptTextView: UITextView!
+    
+    // MARK: - Private Properties
     
     private var pageTitle = ""
     private var pageURL = ""
+    
+    // MARK: - UIViewController
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,8 +55,10 @@ final class ActionViewController: UIViewController {
             }
         }
     }
+    
+    // MARK: - IBActions
 
-    @IBAction func done() {
+    @IBAction private func done() {
         let item = NSExtensionItem()
         let webDictionary: NSDictionary = [
             NSExtensionJavaScriptFinalizeArgumentKey: ["customJavaScript": scriptTextView.text as Any]
