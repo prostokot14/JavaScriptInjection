@@ -26,6 +26,10 @@ final class ActionViewController: UIViewController {
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
         
+        let notificationCenter = NotificationCenter.default
+        notificationCenter.addObserver(self, selector: #selector(adjustForKeyboard), name: UIResponder.keyboardWillHideNotification, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(adjustForKeyboard), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        
         // When extension is created, its extensionContext lets us control how it interacts with the parent app.
         // In the case of inputItems this will be an array of data the parent app is sending to our extension to use.
         if let inputItem = extensionContext?.inputItems.first as? NSExtensionItem {
@@ -54,6 +58,31 @@ final class ActionViewController: UIViewController {
                 }
             }
         }
+    }
+    
+    // MARK: - Private methods
+    
+    @objc
+    private func adjustForKeyboard(notification: Notification) {
+        guard let keyboardValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+        let keyboardScreenEndFrame = keyboardValue.cgRectValue
+        
+        // We need to convert the rectangle to our view's co-ordinates.
+        // This is because rotation isn't factored into the frame,
+        // so if the user is in landscape we'll have the width and height flipped.
+        // Using the convert() method will fix that.
+        let keyboardViewEndFrame = view.convert(keyboardScreenEndFrame, from: view.window)
+        
+        // A check in there for UIKeyboardWillHide.
+        // That's the workaround for hardware keyboards being connected by explicitly setting the insets to be zero.
+        scriptTextView.contentInset = if notification.name == UIResponder.keyboardWillHideNotification {
+            .zero
+        } else {
+            UIEdgeInsets(top: 0, left: 0, bottom: keyboardViewEndFrame.height - view.safeAreaInsets.bottom, right: 0)
+        }
+        
+        scriptTextView.scrollIndicatorInsets = scriptTextView.contentInset
+        scriptTextView.scrollRangeToVisible(scriptTextView.selectedRange)
     }
     
     // MARK: - IBActions
