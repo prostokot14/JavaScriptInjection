@@ -83,40 +83,29 @@ final class ActionViewController: UIViewController, CustomScriptsDataDelegate {
     }
     
     private func saveScriptForCurrentURL() {
-        if #available(iOSApplicationExtension 16.0, *) {
-            if
-                let url = URL(string: pageURL),
-                let host = url.host()
-            {
-                savedScripts[host] = scriptTextView.text
-                UserDefaults.standard.set(savedScripts, forKey: savedScriptsKey)
-            }
-        } else {
-            if
-                let url = URL(string: pageURL),
-                let host = url.host
-            {
-                savedScripts[host] = scriptTextView.text
-                UserDefaults.standard.set(savedScripts, forKey: savedScriptsKey)
-            }
+        if let host = getURLHost() {
+            savedScripts[host] = scriptTextView.text
+            UserDefaults.standard.set(savedScripts, forKey: savedScriptsKey)
         }
     }
     
     private func showSavedScript() {
+        if let host = getURLHost() {
+            scriptTextView.text = savedScripts[host]
+        }
+    }
+    
+    private func getURLHost() -> String? {
         if #available(iOSApplicationExtension 16.0, *) {
             if
                 let url = URL(string: pageURL),
                 let host = url.host()
-            {
-                scriptTextView.text = savedScripts[host]
-            }
+            { host } else { nil }
         } else {
             if
                 let url = URL(string: pageURL),
                 let host = url.host
-            {
-                scriptTextView.text = savedScripts[host]
-            }
+            { host } else { nil }
         }
     }
     
