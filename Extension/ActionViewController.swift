@@ -18,6 +18,9 @@ final class ActionViewController: UIViewController {
     
     private var pageTitle = ""
     private var pageURL = ""
+    private var savedScripts = [String: String]()
+    
+    private let savedScriptsKey = "SavedScripts"
     
     // MARK: - UIViewController
     
@@ -53,8 +56,11 @@ final class ActionViewController: UIViewController {
                     self?.pageTitle = javaScriptValues["title"] as? String ?? ""
                     self?.pageURL = javaScriptValues["URL"] as? String ?? ""
                     
+                    self?.loadData()
+                    
                     DispatchQueue.main.async {
                         self?.title = self?.pageTitle
+                        self?.showSavedScript()
                     }
                 }
             }
@@ -100,9 +106,55 @@ final class ActionViewController: UIViewController {
         present(alertController, animated: true)
     }
     
+    private func saveScriptForCurrentURL() {
+        if #available(iOSApplicationExtension 16.0, *) {
+            if
+                let url = URL(string: pageURL),
+                let host = url.host()
+            {
+                savedScripts[host] = scriptTextView.text
+                UserDefaults.standard.set(savedScripts, forKey: savedScriptsKey)
+            }
+        } else {
+            if
+                let url = URL(string: pageURL),
+                let host = url.host
+            {
+                savedScripts[host] = scriptTextView.text
+                UserDefaults.standard.set(savedScripts, forKey: savedScriptsKey)
+            }
+        }
+    }
+    
+    private func showSavedScript() {
+        if #available(iOSApplicationExtension 16.0, *) {
+            if
+                let url = URL(string: pageURL),
+                let host = url.host()
+            {
+                scriptTextView.text = savedScripts[host]
+            }
+        } else {
+            if
+                let url = URL(string: pageURL),
+                let host = url.host
+            {
+                scriptTextView.text = savedScripts[host]
+            }
+        }
+    }
+    
+    private func loadData() {
+        savedScripts = UserDefaults.standard.object(forKey: savedScriptsKey) as? [String : String] ?? [String: String]()
+    }
+    
     // MARK: - IBActions
 
     @IBAction private func done() {
+        DispatchQueue.global().async { [weak self] in
+            self?.saveScriptForCurrentURL()
+        }
+        
         let item = NSExtensionItem()
         let webDictionary: NSDictionary = [
             NSExtensionJavaScriptFinalizeArgumentKey: ["customJavaScript": scriptTextView.text as Any]
