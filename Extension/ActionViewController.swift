@@ -9,7 +9,7 @@ import UIKit
 import MobileCoreServices
 import UniformTypeIdentifiers
 
-final class ActionViewController: UIViewController {
+final class ActionViewController: UIViewController, CustomScriptsDataDelegate {
     // MARK: - IBOutlets
     
     @IBOutlet private var scriptTextView: UITextView!
@@ -21,14 +21,18 @@ final class ActionViewController: UIViewController {
     private var savedScripts = [String: String]()
     
     private let savedScriptsKey = "SavedScripts"
+    private let customScriptsKey = "CustomScripts"
+    
+    // MARK: - Public Properties
+    
+    var customScripts = [CustomScript]()
     
     // MARK: - UIViewController
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        navigationItem.leftBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "doc.on.doc"), style: .plain, target: self, action: #selector(chooseScript))
-        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
+        customizeTabBar()
         
         let notificationCenter = NotificationCenter.default
         notificationCenter.addObserver(self, selector: #selector(adjustForKeyboard), name: UIResponder.keyboardWillHideNotification, object: nil)
@@ -69,41 +73,13 @@ final class ActionViewController: UIViewController {
     
     // MARK: - Private methods
     
-    @objc
-    private func adjustForKeyboard(notification: Notification) {
-        guard let keyboardValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
-        let keyboardScreenEndFrame = keyboardValue.cgRectValue
+    private func customizeTabBar() {
+        let chooseScriptBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "doc.on.doc"), style: .plain, target: self, action: #selector(chooseScript))
+        let saveScriptBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "square.and.arrow.down"), style: .plain, target: self, action: #selector(saveCustomScript))
+        let showScriptsBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "tray"), style: .plain, target: self, action: #selector(showCustomScripts))
         
-        // We need to convert the rectangle to our view's co-ordinates.
-        // This is because rotation isn't factored into the frame,
-        // so if the user is in landscape we'll have the width and height flipped.
-        // Using the convert() method will fix that.
-        let keyboardViewEndFrame = view.convert(keyboardScreenEndFrame, from: view.window)
-        
-        // A check in there for UIKeyboardWillHide.
-        // That's the workaround for hardware keyboards being connected by explicitly setting the insets to be zero.
-        scriptTextView.contentInset = if notification.name == UIResponder.keyboardWillHideNotification {
-            .zero
-        } else {
-            UIEdgeInsets(top: 0, left: 0, bottom: keyboardViewEndFrame.height - view.safeAreaInsets.bottom, right: 0)
-        }
-        
-        scriptTextView.scrollIndicatorInsets = scriptTextView.contentInset
-        scriptTextView.scrollRangeToVisible(scriptTextView.selectedRange)
-    }
-    
-    @objc
-    private func chooseScript() {
-        let alertController = UIAlertController(title: "Choose script", message: "Choose the JavaScript script for execution", preferredStyle: .actionSheet)
-        
-        for (title, example) in scriptExamples {
-            alertController.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
-                self?.scriptTextView.text = example
-            })
-        }
-        
-        alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        present(alertController, animated: true)
+        navigationItem.leftBarButtonItems = [chooseScriptBarButtonItem, saveScriptBarButtonItem, showScriptsBarButtonItem]
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
     }
     
     private func saveScriptForCurrentURL() {
@@ -146,6 +122,73 @@ final class ActionViewController: UIViewController {
     
     private func loadData() {
         savedScripts = UserDefaults.standard.object(forKey: savedScriptsKey) as? [String : String] ?? [String: String]()
+        
+        if let customScriptsData = UserDefaults.standard.object(forKey: customScriptsKey) as? Data {
+            customScripts = (try? JSONDecoder().decode([CustomScript].self, from: customScriptsData)) ?? [CustomScript]()
+        }
+    }
+    
+    @objc
+    private func adjustForKeyboard(notification: Notification) {
+        guard let keyboardValue = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else { return }
+        let keyboardScreenEndFrame = keyboardValue.cgRectValue
+        
+        // We need to convert the rectangle to our view's co-ordinates.
+        // This is because rotation isn't factored into the frame,
+        // so if the user is in landscape we'll have the width and height flipped.
+        // Using the convert() method will fix that.
+        let keyboardViewEndFrame = view.convert(keyboardScreenEndFrame, from: view.window)
+        
+        // A check in there for UIKeyboardWillHide.
+        // That's the workaround for hardware keyboards being connected by explicitly setting the insets to be zero.
+        scriptTextView.contentInset = if notification.name == UIResponder.keyboardWillHideNotification {
+            .zero
+        } else {
+            UIEdgeInsets(top: 0, left: 0, bottom: keyboardViewEndFrame.height - view.safeAreaInsets.bottom, right: 0)
+        }
+        
+        scriptTextView.scrollIndicatorInsets = scriptTextView.contentInset
+        scriptTextView.scrollRangeToVisible(scriptTextView.selectedRange)
+    }
+    
+    @objc
+    private func chooseScript() {
+        let alertController = UIAlertController(title: "Choose script", message: "Choose the JavaScript script for execution", preferredStyle: .actionSheet)
+        
+        for (title, example) in scriptExamples {
+            alertController.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
+                self?.scriptTextView.text = example
+            })
+        }
+        
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alertController, animated: true)
+    }
+    
+    @objc
+    private func saveCustomScript() {
+        let alertController = UIAlertController(title: "Save script", message: "Enter name for your script", preferredStyle: .alert)
+        alertController.addTextField()
+        alertController.addAction(UIAlertAction(title: "Save", style: .default) { [weak self, weak alertController] _ in
+            guard let self, let name = alertController?.textFields?[0].text else { return }
+            self.customScripts.append(CustomScript(name: name, script: self.scriptTextView.text ?? ""))
+            
+            DispatchQueue.global().async {
+                if let savedData = try? JSONEncoder().encode(self.customScripts) {
+                    UserDefaults.standard.set(savedData, forKey: self.customScriptsKey)
+                }
+            }
+        })
+        present(alertController, animated: true)
+    }
+    
+    @objc
+    private func showCustomScripts() {
+        if let customScriptsTableViewController = storyboard?.instantiateViewController(identifier: "CustomScriptsViewController") as? CustomScriptsTableViewController {
+            customScriptsTableViewController.delegate = self
+            
+            navigationController?.pushViewController(customScriptsTableViewController, animated: true)
+        }
     }
     
     // MARK: - IBActions
@@ -168,5 +211,11 @@ final class ActionViewController: UIViewController {
         
         item.attachments = [customJavaScript]
         extensionContext?.completeRequest(returningItems: [item])
+    }
+    
+    // MARK: - Public Methods
+    
+    func setScriptToShow(at index: Int) {
+        scriptTextView.text = customScripts[index].script
     }
 }
