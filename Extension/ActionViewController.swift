@@ -24,6 +24,7 @@ final class ActionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        navigationItem.leftBarButtonItem = UIBarButtonItem(image: UIImage(systemName: "doc.on.doc"), style: .plain, target: self, action: #selector(chooseScript))
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(done))
         
         let notificationCenter = NotificationCenter.default
@@ -83,6 +84,20 @@ final class ActionViewController: UIViewController {
         
         scriptTextView.scrollIndicatorInsets = scriptTextView.contentInset
         scriptTextView.scrollRangeToVisible(scriptTextView.selectedRange)
+    }
+    
+    @objc
+    private func chooseScript() {
+        let alertController = UIAlertController(title: "Choose script", message: "Choose the JavaScript script for execution", preferredStyle: .actionSheet)
+        
+        for (title, example) in scriptExamples {
+            alertController.addAction(UIAlertAction(title: title, style: .default) { [weak self] _ in
+                self?.scriptTextView.text = example
+            })
+        }
+        
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        present(alertController, animated: true)
     }
     
     // MARK: - IBActions
